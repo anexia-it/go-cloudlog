@@ -14,4 +14,4 @@
 .glide/
 
 test/
-cloudlog_test.go
+internal_test.go
