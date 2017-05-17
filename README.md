@@ -35,8 +35,15 @@ func main() {
     panic(err)
   }
   
-  // Push event
+  // Push simple message
   client.PushEvent("message")
   
+  // Push document
+	client.PushEvent(`{
+		"timestamp": 1495024205123,
+		"user": "test",
+		"severity": 1,
+		"message": "My first CloudLog event"
+	}`)
 }
 ```
