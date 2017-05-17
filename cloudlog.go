@@ -35,7 +35,7 @@ func InitCloudLog(index string, ca string, cert string, key string) (*CloudLog, 
 	}
 
 	// try to connect
-	err := c.Connect()
+	err := c.connect()
 
 	// check error
 	if err != nil {
@@ -50,31 +50,6 @@ func (c *CloudLog) Close() error {
 	if err != nil {
 		return errors.New("error while closing producer: " + err.Error())
 	}
-	return nil
-}
-
-// Connect tries to establish a connection to CloudLog
-func (c *CloudLog) Connect() error {
-
-	var err error
-
-	tlsConfig, err := createTLSConfiguration(c)
-	if err != nil {
-		return errors.New("invalid tls configuration: " + err.Error())
-	}
-
-	config := sarama.NewConfig()
-	config.Producer.RequiredAcks = sarama.WaitForAll
-	config.Producer.Retry.Max = 10
-	config.Producer.Return.Successes = true
-	config.Version = sarama.V0_10_2_0
-	config.Net.TLS.Enable = true
-	config.Net.TLS.Config = tlsConfig
-	c.Producer, err = sarama.NewSyncProducer(brokers, config)
-	if err != nil {
-		return errors.New("producer could not be created: " + err.Error())
-	}
-
 	return nil
 }
 
@@ -99,6 +74,31 @@ func (c *CloudLog) PushEvents(events []string) error {
 	err := c.Producer.SendMessages(messages)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// Try to establish a producer to CloudLog
+func (c *CloudLog) connect() error {
+
+	var err error
+
+	tlsConfig, err := createTLSConfiguration(c)
+	if err != nil {
+		return errors.New("invalid tls configuration: " + err.Error())
+	}
+
+	config := sarama.NewConfig()
+	config.Producer.RequiredAcks = sarama.WaitForAll
+	config.Producer.Retry.Max = 10
+	config.Producer.Return.Successes = true
+	config.Version = sarama.V0_10_2_0
+	config.Net.TLS.Enable = true
+	config.Net.TLS.Config = tlsConfig
+	c.Producer, err = sarama.NewSyncProducer(brokers, config)
+	if err != nil {
+		return errors.New("producer could not be created: " + err.Error())
 	}
 
 	return nil
