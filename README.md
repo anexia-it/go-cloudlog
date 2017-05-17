@@ -2,6 +2,7 @@ go-cloudlog
 ===
 
 [![GoDoc](https://godoc.org/github.com/anexia-it/go-cloudlog?status.svg)](https://godoc.org/github.com/anexia-it/go-cloudlog)
+[![Build Status](https://travis-ci.org/anexia-it/go-cloudlog.svg?branch=master)](https://travis-ci.org/anexia-it/go-cloudlog)
 
 go-cloudlog is a client library for Anexia CloudLog.
 
