@@ -1,6 +1,8 @@
 go-cloudlog
 ===
 
+[![GoDoc](https://godoc.org/github.com/anexia-it/go-cloudlog?status.svg)](https://godoc.org/github.com/anexia-it/go-cloudlog)
+
 go-cloudlog is a client library for Anexia CloudLog.
 
 Currently it only provides to push events to CloudLog. Querying is possible in a future release.
