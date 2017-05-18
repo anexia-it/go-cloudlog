@@ -28,16 +28,22 @@ package main
 import cloudlog "github.com/anexia-it/go-cloudlog"
 
 func main() {
-  var client *cloudlog.CloudLog
-  var err error
-  
+
   // Init CloudLog client
-  client, err = cloudlog.InitCloudLog("index", "ca.pem", "cert.pem", "cert.key")
+  client, err := cloudlog.InitCloudLog("index", "ca.pem", "cert.pem", "cert.key")
   if err != nil {
     panic(err)
   }
   
-  // Push event
+  // Push simple message
   client.PushEvent("message")
+  
+  // Push document
+  client.PushEvent(`{
+    "timestamp": 1495024205123,
+    "user": "test",
+    "severity": 1,
+    "message": "My first CloudLog event"
+  }`)
 }
 ```
