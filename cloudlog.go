@@ -65,7 +65,7 @@ func NewCloudLog(indexName string, options ...Option) (cl *CloudLog, err error) 
 	return
 }
 
-// InitCloudLog validates and initalizes the CloudLog client
+// InitCloudLog validates and initializes the CloudLog client
 func InitCloudLog(index string, ca string, cert string, key string) (*CloudLog, error) {
 	return NewCloudLog(index, OptionCACertificateFile(ca), OptionClientCertificateFile(cert, key))
 }
