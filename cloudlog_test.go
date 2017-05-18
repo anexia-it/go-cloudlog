@@ -6,6 +6,7 @@ import (
 
 	"encoding/json"
 	"fmt"
+
 	"github.com/Shopify/sarama"
 	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-multierror"
