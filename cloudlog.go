@@ -3,163 +3,149 @@ package cloudlog
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
-	"errors"
-	"io/ioutil"
-	"os"
+
 	"time"
 
+	"sync"
+
 	"github.com/Shopify/sarama"
+	"github.com/hashicorp/go-multierror"
 )
 
 // CloudLog is the CloudLog object to send logs
 type CloudLog struct {
-	Index    string
-	CAFile   string
-	CertFile string
-	KeyFile  string
-	Producer sarama.SyncProducer
+	brokers       []string
+	tlsConfig     *tls.Config
+	producerMutex sync.RWMutex
+	producer      sarama.SyncProducer
+	saramaConfig  sarama.Config
+	indexName     string
+	sourceHost    string
+	eventEncoder  EventEncoder
 }
 
-// Default broker list
-var brokers = []string{"anx-bdp-broker0401.bdp.anexia-it.com:443", "anx-bdp-broker0402.bdp.anexia-it.com:443", "anx-bdp-broker0403.bdp.anexia-it.com:443"}
+// NewCloudLog initializes a new CloudLog instance
+func NewCloudLog(indexName string, options ...Option) (cl *CloudLog, err error) {
+	if indexName == "" {
+		err = ErrIndexNotDefined
+		return
+	}
+
+	cl = &CloudLog{
+		tlsConfig: &tls.Config{},
+		indexName: indexName,
+	}
+
+	// When returning an error ensure that we return a nil value as *CloudLog
+	defer func() {
+		if err != nil {
+			cl = nil
+		}
+	}()
+
+	// Apply all options, default options first
+	options = append(defaultOptions, options...)
+	for _, opt := range options {
+		if optErr := opt(cl); optErr != nil {
+			err = multierror.Append(err, optErr)
+		}
+	}
+
+	// At least one option caused an error, bail out
+	if err != nil {
+		return
+	}
+
+	// Enforce TLS and the specific kafka version
+	cl.saramaConfig.Version = sarama.V0_10_2_0
+	cl.saramaConfig.Net.TLS.Enable = true
+	cl.saramaConfig.Net.TLS.Config = cl.tlsConfig
+
+	return
+}
 
 // InitCloudLog validates and initalizes the CloudLog client
 func InitCloudLog(index string, ca string, cert string, key string) (*CloudLog, error) {
+	return NewCloudLog(index, OptionCACertificateFile(ca), OptionClientCertificateFile(cert, key))
+}
 
-	// create CloudLog struct
-	c := &CloudLog{
-		Index:    index,
-		CAFile:   ca,
-		CertFile: cert,
-		KeyFile:  key,
+func (cl *CloudLog) getProducer() (sarama.SyncProducer, error) {
+	var err error
+	cl.producerMutex.RLock()
+	defer cl.producerMutex.RUnlock()
+	if cl.producer == nil {
+		// Connection not yet established, establish connections now
+
+		// First drop the rlock and obtain a wlock
+		cl.producerMutex.RUnlock()
+		cl.producerMutex.Lock()
+
+		// Ensure that we drop the wlock again and obtain the rlock before returning,
+		// so the deferred runlock will not cause a panic
+		defer func() {
+			cl.producerMutex.Unlock()
+			cl.producerMutex.RLock()
+		}()
+		cl.producer, err = sarama.NewSyncProducer(cl.brokers, &cl.saramaConfig)
 	}
 
-	// try to connect
-	err := c.connect()
-
-	// check error
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
+	return cl.producer, err
 }
 
 // Close closes the connection
-func (c *CloudLog) Close() error {
-	err := c.Producer.Close()
-	if err != nil {
-		return errors.New("error while closing producer: " + err.Error())
+func (cl *CloudLog) Close() (err error) {
+	cl.producerMutex.Lock()
+	defer cl.producerMutex.Unlock()
+
+	// Close should be a no-op if no connection has been established
+	if cl.producer != nil {
+		err = cl.producer.Close()
+		cl.producer = nil
 	}
-	return nil
+	return
+}
+
+// PushEvents sends the supplied events to CloudLog
+func (cl *CloudLog) PushEvents(event interface{}, events ...interface{}) (err error) {
+	events = append([]interface{}{event}, events...)
+
+	// Get the producer. This will lazily establish the connection on the first call
+	var producer sarama.SyncProducer
+	if producer, err = cl.getProducer(); err != nil {
+		return
+	}
+
+	now := time.Now()
+	// Encode the events
+	messages := make([]*sarama.ProducerMessage, len(events))
+	for i, ev := range events {
+		var eventMap map[string]interface{}
+		if eventMap, err = cl.eventEncoder.EncodeEvent(ev); err != nil {
+			return err
+		}
+
+		eventMap["timestamp"] = now.String()
+		eventMap["cloudlog_source_host"] = cl.sourceHost
+		eventMap["cloudlog_client_type"] = "go-client"
+
+		var eventData []byte
+		eventData, err = json.Marshal(eventMap)
+		if err != nil {
+			return NewMarshalError(eventMap, err)
+		}
+
+		messages[i] = &sarama.ProducerMessage{
+			Topic:     cl.indexName,
+			Value:     sarama.StringEncoder(eventData),
+			Timestamp: now,
+		}
+	}
+
+	return producer.SendMessages(messages)
 }
 
 // PushEvent sends an event to CloudLog
-func (c *CloudLog) PushEvent(event string) error {
-	return c.PushEvents([]string{event})
-}
-
-// PushEvents sends one or more events to CloudLog
-func (c *CloudLog) PushEvents(events []string) error {
-
-	var messages []*sarama.ProducerMessage
-
-	for _, event := range events {
-		event = addMetadata(event)
-		messages = append(messages, &sarama.ProducerMessage{
-			Topic:     c.Index,
-			Value:     sarama.StringEncoder(event),
-			Timestamp: time.Now(),
-		})
-	}
-
-	err := c.Producer.SendMessages(messages)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Try to establish a producer to CloudLog
-func (c *CloudLog) connect() error {
-
-	var err error
-
-	tlsConfig, err := createTLSConfiguration(c)
-	if err != nil {
-		return errors.New("invalid tls configuration: " + err.Error())
-	}
-
-	config := sarama.NewConfig()
-	config.Producer.RequiredAcks = sarama.WaitForAll
-	config.Producer.Retry.Max = 10
-	config.Producer.Return.Successes = true
-	config.Version = sarama.V0_10_2_0
-	config.Net.TLS.Enable = true
-	config.Net.TLS.Config = tlsConfig
-	c.Producer, err = sarama.NewSyncProducer(brokers, config)
-	if err != nil {
-		return errors.New("producer could not be created: " + err.Error())
-	}
-
-	return nil
-}
-
-// Create TLS config from ca, cert and key file
-func createTLSConfiguration(c *CloudLog) (*tls.Config, error) {
-
-	cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
-	if err != nil {
-		return nil, err
-	}
-
-	caCert, err := ioutil.ReadFile(c.CAFile)
-	if err != nil {
-		return nil, err
-	}
-
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-
-	t := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      caCertPool,
-	}
-
-	return t, nil
-}
-
-// parse event and add meta data
-func addMetadata(event string) string {
-
-	data := map[string]interface{}{}
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = ""
-	}
-
-	if !isJSON(event) {
-		data["message"] = event
-		data["timestamp"] = time.Now()
-	} else {
-		json.Unmarshal([]byte(event), &data)
-	}
-
-	if len(hostname) > 0 {
-		data["cloudlog_source_host"] = hostname
-	}
-	data["cloudlog_client_type"] = "go-client"
-
-	bytes, _ := json.Marshal(&data)
-	return string(bytes)
-
-}
-
-// isJSON checks if string is a json string
-func isJSON(str string) bool {
-	var js json.RawMessage
-	return json.Unmarshal([]byte(str), &js) == nil
+func (cl *CloudLog) PushEvent(event interface{}) error {
+	return cl.PushEvents(event)
 }

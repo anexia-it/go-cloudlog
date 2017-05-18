@@ -1,13 +1,25 @@
 language: go
-go:
-  - 1.7
+
+matrix:
+  include:
+    - go: 1.6
+    - go: 1.7
+    - go: 1.8
 
 branches:
   only:
     - master
 
 before_install:
-  - go get github.com/Shopify/sarama
+  - go get golang.org/x/tools/cmd/cover
+  - go get golang.org/x/tools/goimports
 
 script:
- - go test -v .
+ - go get -t -v ./...
+ - diff -u <(echo -n) <(gofmt -d .)
+ - diff -u <(echo -n) <(goimports -d .)
+ - go tool vet .
+ - go test -v -coverprofile=coverage.txt -covermode=atomic
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
