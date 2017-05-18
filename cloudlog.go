@@ -4,8 +4,10 @@ package cloudlog
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -64,6 +66,7 @@ func (c *CloudLog) PushEvents(events []string) error {
 	var messages []*sarama.ProducerMessage
 
 	for _, event := range events {
+		event = addMetadata(event)
 		messages = append(messages, &sarama.ProducerMessage{
 			Topic:     c.Index,
 			Value:     sarama.StringEncoder(event),
@@ -126,4 +129,37 @@ func createTLSConfiguration(c *CloudLog) (*tls.Config, error) {
 	}
 
 	return t, nil
+}
+
+// parse event and add meta data
+func addMetadata(event string) string {
+
+	data := map[string]interface{}{}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""
+	}
+
+	if !isJSON(event) {
+		data["message"] = event
+		data["timestamp"] = time.Now()
+	} else {
+		json.Unmarshal([]byte(event), &data)
+	}
+
+	if len(hostname) > 0 {
+		data["cloudlog_source_host"] = hostname
+	}
+	data["cloudlog_client_type"] = "go-client"
+
+	bytes, _ := json.Marshal(&data)
+	return string(bytes)
+
+}
+
+// isJSON checks if string is a json string
+func isJSON(str string) bool {
+	var js json.RawMessage
+	return json.Unmarshal([]byte(str), &js) == nil
 }
