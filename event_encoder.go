@@ -13,6 +13,7 @@ type EventEncoder interface {
 type SimpleEventEncoder struct {
 }
 
+// EncodeEvent encodes the given event
 func (e *SimpleEventEncoder) EncodeEvent(event interface{}) (map[string]interface{}, error) {
 	if enc, ok := event.(Event); ok {
 		return enc.Encode(), nil

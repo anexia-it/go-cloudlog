@@ -63,6 +63,7 @@ func TestSimpleEventEncoder_EncodeEvent(t *testing.T) {
 	// Test unsupported type
 	m, err = enc.EncodeEvent(0)
 	require.Error(t, err)
+	require.Nil(t, m)
 	isEventEncodingError, eventData := cloudlog.IsEventEncodingError(err)
 	require.True(t, isEventEncodingError)
 	require.EqualValues(t, 0, eventData)

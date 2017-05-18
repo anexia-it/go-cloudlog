@@ -10,10 +10,12 @@ const DefaultTagName = "cloudlog"
 
 var _ cloudlog.EventEncoder = (*StructEncoder)(nil)
 
+// StructEncoder implements an encoder which can encode structs using gopkg.in/anexia-it/go-structmapper.v1
 type StructEncoder struct {
 	mapper *structmapper.Mapper
 }
 
+// EncodeEvent encodes the given event
 func (e *StructEncoder) EncodeEvent(event interface{}) (m map[string]interface{}, err error) {
 	return e.mapper.ToMap(event)
 }

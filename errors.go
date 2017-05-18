@@ -59,6 +59,7 @@ func (e *MarshalError) Error() string {
 	return fmt.Sprintf("Marshal of event failed: %s", e.Parent.Error())
 }
 
+// WrappedErrors returns the wrapped parent error
 func (e *MarshalError) WrappedErrors() []error {
 	return []error{e.Parent}
 }
