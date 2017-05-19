@@ -3,7 +3,7 @@ go-cloudlog
 
 [![GoDoc](https://godoc.org/github.com/anexia-it/go-cloudlog?status.svg)](https://godoc.org/github.com/anexia-it/go-cloudlog)
 [![Build Status](https://travis-ci.org/anexia-it/go-cloudlog.svg?branch=master)](https://travis-ci.org/anexia-it/go-cloudlog)
-[![codecov](https://codecov.io/gh/anexia-it/go-go-cloudlog/branch/master/graph/badge.svg)](https://codecov.io/gh/anexia-it/go-cloudlog)
+[![codecov](https://codecov.io/gh/anexia-it/go-cloudlog/branch/master/graph/badge.svg)](https://codecov.io/gh/anexia-it/go-cloudlog)
 [![Go Report Card](https://goreportcard.com/badge/github.com/anexia-it/go-cloudlog)](https://goreportcard.com/report/github.com/anexia-it/go-cloudlog)
 
 go-cloudlog is a client library for Anexia CloudLog.
