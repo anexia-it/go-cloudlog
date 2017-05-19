@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/Shopify/sarama"
-	"github.com/hashicorp/go-multierror"
+	multierror "github.com/hashicorp/go-multierror"
 )
 
 // CloudLog is the CloudLog object to send logs
@@ -117,6 +117,7 @@ func (cl *CloudLog) PushEvents(event interface{}, events ...interface{}) (err er
 	}
 
 	now := time.Now()
+	timestampMillis := now.UnixNano() / 1000000
 	// Encode the events
 	messages := make([]*sarama.ProducerMessage, len(events))
 	for i, ev := range events {
@@ -125,7 +126,7 @@ func (cl *CloudLog) PushEvents(event interface{}, events ...interface{}) (err er
 			return err
 		}
 
-		eventMap["timestamp"] = now.String()
+		eventMap["timestamp"] = timestampMillis
 		eventMap["cloudlog_source_host"] = cl.sourceHost
 		eventMap["cloudlog_client_type"] = "go-client"
 
