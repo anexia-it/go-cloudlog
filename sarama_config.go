@@ -19,6 +19,9 @@ func init() {
 	defaultSaramaConfig.Producer.Return.Successes = true
 	defaultSaramaConfig.Producer.Return.Errors = true
 	defaultSaramaConfig.Version = sarama.V0_10_2_0
+
+	// Update the default options just after initializing defaultSaramaConfig
+	defaultOptions = append(defaultOptions, OptionSaramaConfig(GetDefaultSaramaConfig()))
 }
 
 // GetDefaultSaramaConfig returns a copy of the default sarama config.

@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"os"
+	"time"
+
 	"github.com/Shopify/sarama"
 	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-multierror"
@@ -29,6 +32,29 @@ func TestNewCloudLog(t *testing.T) {
 	require.NotNil(t, cl)
 	// Ensure cl.Close() is called
 	cl.Close()
+
+	// Validate that the configuration has been applied as expected
+	require.EqualValues(t, "test", cl.indexName)
+
+	// Ensure the default sarama config has been applied
+	require.EqualValues(t, time.Second*5, cl.saramaConfig.Net.DialTimeout)
+	require.EqualValues(t, time.Second*30, cl.saramaConfig.Net.WriteTimeout)
+	require.EqualValues(t, time.Second*30, cl.saramaConfig.Net.ReadTimeout)
+	require.EqualValues(t, time.Second*10, cl.saramaConfig.Net.KeepAlive)
+	require.EqualValues(t, 10, cl.saramaConfig.Net.MaxOpenRequests)
+	require.EqualValues(t, sarama.WaitForAll, cl.saramaConfig.Producer.RequiredAcks)
+	require.EqualValues(t, 10, cl.saramaConfig.Producer.Retry.Max)
+	require.True(t, cl.saramaConfig.Producer.Return.Successes)
+	require.True(t, cl.saramaConfig.Producer.Return.Errors)
+	require.EqualValues(t, sarama.V0_10_2_0, cl.saramaConfig.Version)
+
+	require.NotNil(t, cl.tlsConfig)
+	require.NotNil(t, cl.eventEncoder)
+	require.IsType(t, &SimpleEventEncoder{}, cl.eventEncoder)
+
+	hostname, err := os.Hostname()
+	require.NoError(t, err)
+	require.EqualValues(t, hostname, cl.sourceHost)
 
 	// Option that returns an error
 	cl, err = NewCloudLog("test", MockOptionWithError)
