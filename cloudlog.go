@@ -116,8 +116,9 @@ func (cl *CloudLog) PushEvents(event interface{}, events ...interface{}) (err er
 		return
 	}
 
-	now := time.Now()
-	timestampMillis := now.UnixNano() / 1000000
+	now := time.Now().UTC()
+	timestampMillis := now.UnixNano() / int64(time.Millisecond)
+
 	// Encode the events
 	messages := make([]*sarama.ProducerMessage, len(events))
 	for i, ev := range events {
@@ -126,7 +127,15 @@ func (cl *CloudLog) PushEvents(event interface{}, events ...interface{}) (err er
 			return err
 		}
 
-		eventMap["timestamp"] = timestampMillis
+		// Try converting a possibly present timestamp value to the format
+		// expected by CloudLog
+		ts := ConvertToTimestamp(eventMap["timestamp"])
+		if ts == 0 {
+			// Value was not present or conversion has failed: use current timestamp
+			ts = timestampMillis
+		}
+
+		eventMap["timestamp"] = ts
 		eventMap["cloudlog_source_host"] = cl.sourceHost
 		eventMap["cloudlog_client_type"] = "go-client"
 
