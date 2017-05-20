@@ -1,9 +1,35 @@
 package cloudlog
 
+import "github.com/anexia-it/go-cloudlog/structencoder"
+
 // EventEncoder defines the interface for encoding events
 type EventEncoder interface {
 	// EncodeEvent encodes the given event
 	EncodeEvent(event interface{}) (map[string]interface{}, error)
+}
+
+// AutomaticEventEncoder tries to find the right encoder for the given input
+type AutomaticEventEncoder struct {
+	Encoders []EventEncoder
+}
+
+// NewAutomaticEventEncoder returns a new encoder that supports all available encoders
+func NewAutomaticEventEncoder() *AutomaticEventEncoder {
+	encoder := &AutomaticEventEncoder{}
+	structEncoder, _ := structencoder.NewStructEncoder()
+	encoder.Encoders = []EventEncoder{&SimpleEventEncoder{}, structEncoder}
+	return encoder
+}
+
+// EncodeEvent encodes the given event
+func (e *AutomaticEventEncoder) EncodeEvent(event interface{}) (map[string]interface{}, error) {
+	for _, encoder := range e.Encoders {
+		result, err := encoder.EncodeEvent(event)
+		if err == nil {
+			return result, nil
+		}
+	}
+	return nil, NewUnsupportedEventType(event)
 }
 
 // SimpleEventEncoder implements a simple event encoder

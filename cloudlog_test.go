@@ -56,7 +56,7 @@ func TestNewCloudLog(t *testing.T) {
 
 	require.NotNil(t, cl.tlsConfig)
 	require.NotNil(t, cl.eventEncoder)
-	require.IsType(t, &SimpleEventEncoder{}, cl.eventEncoder)
+	require.IsType(t, NewAutomaticEventEncoder(), cl.eventEncoder)
 
 	hostname, err := os.Hostname()
 	require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestCloudLog_PushEvents(t *testing.T) {
 	require.EqualValues(t, expectedMap, err.(*MarshalError).EventMap)
 
 	// Test successful push of multiple events
-	cl.eventEncoder = &SimpleEventEncoder{}
+	cl.eventEncoder = NewAutomaticEventEncoder()
 	nowMillis := time.Now().UTC().UnixNano() / int64(time.Millisecond)
 	mockProducer.EXPECT().SendMessages(gomock.Any()).Times(1).Do(func(msgs []*sarama.ProducerMessage) {
 		require.Len(t, msgs, 3)
@@ -133,7 +133,7 @@ func TestCloudLog_PushEvents(t *testing.T) {
 			// Ensure that all values have been set
 			require.InDelta(t, nowMillis, msgData["timestamp"], float64(time.Second))
 			require.EqualValues(t, fmt.Sprintf("test%d", i), msgData["message"])
-			require.EqualValues(t, "go-client", msgData["cloudlog_client_type"])
+			require.EqualValues(t, "go-client-kafka", msgData["cloudlog_client_type"])
 			require.EqualValues(t, cl.sourceHost, msgData["cloudlog_source_host"])
 
 		}
@@ -164,7 +164,7 @@ func TestCloudLog_PushEvent(t *testing.T) {
 		// Ensure that all values have been set
 		require.InDelta(t, nowMillis, msgData["timestamp"], float64(time.Second))
 		require.EqualValues(t, "test0", msgData["message"])
-		require.EqualValues(t, "go-client", msgData["cloudlog_client_type"])
+		require.EqualValues(t, "go-client-kafka", msgData["cloudlog_client_type"])
 		require.EqualValues(t, cl.sourceHost, msgData["cloudlog_source_host"])
 	}).Return(errors.New("test error"))
 	require.EqualError(t, cl.PushEvent("test0"), "test error")
@@ -180,7 +180,7 @@ func TestCloudLog_PushEvent(t *testing.T) {
 		// Ensure that all values have been set
 		require.EqualValues(t, expectedTimestamp, msgData["timestamp"])
 		require.EqualValues(t, "test value", msgData["test_property"])
-		require.EqualValues(t, "go-client", msgData["cloudlog_client_type"])
+		require.EqualValues(t, "go-client-kafka", msgData["cloudlog_client_type"])
 		require.EqualValues(t, cl.sourceHost, msgData["cloudlog_source_host"])
 	}).Return(errors.New("test error 2"))
 	require.EqualError(t, cl.PushEvent(map[string]interface{}{
@@ -201,7 +201,7 @@ func TestCloudLog_PushEvent(t *testing.T) {
 		// Ensure that all values have been set
 		require.EqualValues(t, ts.UTC().UnixNano()/int64(time.Millisecond), msgData["timestamp"])
 		require.EqualValues(t, "test value 2", msgData["test_property"])
-		require.EqualValues(t, "go-client", msgData["cloudlog_client_type"])
+		require.EqualValues(t, "go-client-kafka", msgData["cloudlog_client_type"])
 		require.EqualValues(t, cl.sourceHost, msgData["cloudlog_source_host"])
 	}).Return(errors.New("test error 3"))
 	require.EqualError(t, cl.PushEvent(map[string]interface{}{

@@ -127,17 +127,16 @@ func (cl *CloudLog) PushEvents(event interface{}, events ...interface{}) (err er
 			return err
 		}
 
-		// Try converting a possibly present timestamp value to the format
-		// expected by CloudLog
-		ts := ConvertToTimestamp(eventMap["timestamp"])
-		if ts == 0 {
-			// Value was not present or conversion has failed: use current timestamp
-			ts = timestampMillis
+		// if there is no timestamp field, set it to the current timestamp
+		// otherwise try to convert it to epoch millis format
+		if _, hasTimestamp := eventMap["timestamp"]; !hasTimestamp {
+			eventMap["timestamp"] = timestampMillis
+		} else {
+			eventMap["timestamp"] = ConvertToTimestamp(eventMap["timestamp"])
 		}
 
-		eventMap["timestamp"] = ts
 		eventMap["cloudlog_source_host"] = cl.sourceHost
-		eventMap["cloudlog_client_type"] = "go-client"
+		eventMap["cloudlog_client_type"] = "go-client-kafka"
 
 		var eventData []byte
 		eventData, err = json.Marshal(eventMap)

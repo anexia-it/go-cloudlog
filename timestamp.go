@@ -12,8 +12,8 @@ var int64Type = reflect.TypeOf(int64(0))
 // Besides being a no-op for int64 values, this function is able to convert
 // time.Time values correctly.
 //
-// If conversion is not possible this function returns 0.
-func ConvertToTimestamp(value interface{}) int64 {
+// If conversion is not possible this function returns the original value.
+func ConvertToTimestamp(value interface{}) interface{} {
 	switch v := value.(type) {
 	case int64:
 		// Simple case: already an int64, no-op
@@ -27,6 +27,6 @@ func ConvertToTimestamp(value interface{}) int64 {
 		}
 	}
 
-	// Conversion not possible, return 0
-	return 0
+	// Conversion not possible, return original value
+	return value
 }

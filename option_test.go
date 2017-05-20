@@ -136,7 +136,7 @@ func TestOptionClientCertificateFile(t *testing.T) {
 
 func TestOptionEventEncoder(t *testing.T) {
 	cl := &CloudLog{}
-	enc := &SimpleEventEncoder{}
+	enc := NewAutomaticEventEncoder()
 	require.NoError(t, OptionEventEncoder(enc)(cl))
 	require.Equal(t, enc, cl.eventEncoder)
 }

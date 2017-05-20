@@ -118,7 +118,7 @@ var DefaultBrokerAddresses = []string{
 // defaultOptions defines the default options which are applied to a new CloudLog instance
 var defaultOptions = []Option{
 	OptionBrokers(DefaultBrokerAddresses[0], DefaultBrokerAddresses[1:]...),
-	OptionEventEncoder(&SimpleEventEncoder{}),
+	OptionEventEncoder(NewAutomaticEventEncoder()),
 }
 
 func init() {

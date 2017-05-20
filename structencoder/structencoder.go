@@ -1,14 +1,9 @@
 package structencoder
 
-import (
-	"github.com/anexia-it/go-cloudlog"
-	"gopkg.in/anexia-it/go-structmapper.v1"
-)
+import "gopkg.in/anexia-it/go-structmapper.v1"
 
 // DefaultTagName defines the default tag name to use
 const DefaultTagName = "cloudlog"
-
-var _ cloudlog.EventEncoder = (*StructEncoder)(nil)
 
 // StructEncoder implements an encoder which can encode structs using gopkg.in/anexia-it/go-structmapper.v1
 type StructEncoder struct {
