@@ -1,6 +1,9 @@
 package cloudlog
 
-import "github.com/anexia-it/go-cloudlog/structencoder"
+import structmapper "gopkg.in/anexia-it/go-structmapper.v1"
+
+// DefaultTagName defines the default tag name to use
+const DefaultTagName = "cloudlog"
 
 // EventEncoder defines the interface for encoding events
 type EventEncoder interface {
@@ -16,7 +19,7 @@ type AutomaticEventEncoder struct {
 // NewAutomaticEventEncoder returns a new encoder that supports all available encoders
 func NewAutomaticEventEncoder() *AutomaticEventEncoder {
 	encoder := &AutomaticEventEncoder{}
-	structEncoder, _ := structencoder.NewStructEncoder()
+	structEncoder, _ := NewStructEncoder()
 	encoder.Encoders = []EventEncoder{&SimpleEventEncoder{}, structEncoder}
 	return encoder
 }
@@ -30,6 +33,29 @@ func (e *AutomaticEventEncoder) EncodeEvent(event interface{}) (map[string]inter
 		}
 	}
 	return nil, NewUnsupportedEventType(event)
+}
+
+// StructEncoder implements an encoder which can encode structs using gopkg.in/anexia-it/go-structmapper.v1
+type StructEncoder struct {
+	mapper *structmapper.Mapper
+}
+
+// EncodeEvent encodes the given event
+func (e *StructEncoder) EncodeEvent(event interface{}) (m map[string]interface{}, err error) {
+	return e.mapper.ToMap(event)
+}
+
+// NewStructEncoder returns a new encoder that supports structs
+func NewStructEncoder(options ...structmapper.Option) (*StructEncoder, error) {
+	mapper, err := structmapper.NewMapper(append([]structmapper.Option{
+		structmapper.OptionTagName(DefaultTagName)}, options...)...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &StructEncoder{
+		mapper: mapper,
+	}, nil
 }
 
 // SimpleEventEncoder implements a simple event encoder
