@@ -42,7 +42,12 @@ type StructEncoder struct {
 
 // EncodeEvent encodes the given event
 func (e *StructEncoder) EncodeEvent(event interface{}) (m map[string]interface{}, err error) {
-	return e.mapper.ToMap(event)
+	if m, err = e.mapper.ToMap(event); err != nil {
+		m = nil
+		return
+	}
+	m, err = structmapper.ForceStringMapKeys(m)
+	return
 }
 
 // NewStructEncoder returns a new encoder that supports structs
