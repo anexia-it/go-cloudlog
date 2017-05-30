@@ -49,7 +49,12 @@ func TestOptionTLSConfig(t *testing.T) {
 func TestOptionBrokers(t *testing.T) {
 	expectedBrokers := []string{"test0:443", "test1:443"}
 	cl := &CloudLog{}
-	require.NoError(t, OptionBrokers(expectedBrokers[0], expectedBrokers[1:]...)(cl))
+	require.NoError(t, OptionBrokers(expectedBrokers...)(cl))
+	require.EqualValues(t, expectedBrokers, cl.brokers)
+
+	// Test if passing in no brokers at all works correctly
+	require.EqualError(t, OptionBrokers()(cl), ErrBrokersNotSpecified.Error())
+	// Check if the brokers value did NOT change
 	require.EqualValues(t, expectedBrokers, cl.brokers)
 }
 

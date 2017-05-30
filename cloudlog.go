@@ -107,8 +107,11 @@ func (cl *CloudLog) Close() (err error) {
 }
 
 // PushEvents sends the supplied events to CloudLog
-func (cl *CloudLog) PushEvents(event interface{}, events ...interface{}) (err error) {
-	events = append([]interface{}{event}, events...)
+func (cl *CloudLog) PushEvents(events ...interface{}) (err error) {
+	if len(events) == 0 {
+		// Bail out early if no events have been passed in
+		return
+	}
 
 	// Get the producer. This will lazily establish the connection on the first call
 	var producer sarama.SyncProducer

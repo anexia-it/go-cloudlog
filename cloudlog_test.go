@@ -105,6 +105,11 @@ func TestCloudLog_PushEvents(t *testing.T) {
 	mockEncoder := NewMockEventEncoder(ctrl)
 	cl.eventEncoder = mockEncoder
 
+	// Passing no events should not do anything but return nil
+	// We verify this by not configuring the mockEncoder at all, which would cause an error
+	// if it was called
+	require.NoError(t, cl.PushEvents())
+
 	// Test failure in EncodeEvent
 	mockEncoder.EXPECT().EncodeEvent("test event").Times(1).Return(nil, errors.New("test error"))
 	require.EqualError(t, cl.PushEvents("test event"), "test error")

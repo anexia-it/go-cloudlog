@@ -15,6 +15,9 @@ var (
 
 	// ErrIndexNotDefined indicates that the target index has not been defined
 	ErrIndexNotDefined = errors.New("Target index is not defined")
+
+	// ErrBrokersNotSpecified indicates that no brokers have been specified
+	ErrBrokersNotSpecified = errors.New("Brokers not specified")
 )
 
 // EventEncodingError indicates that an event could not be encoded

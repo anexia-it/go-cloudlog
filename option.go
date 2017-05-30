@@ -14,9 +14,11 @@ import (
 type Option func(*CloudLog) error
 
 // OptionBrokers defines the list of event brokers to use
-func OptionBrokers(broker string, brokers ...string) Option {
-	brokers = append([]string{broker}, brokers...)
+func OptionBrokers(brokers ...string) Option {
 	return func(cl *CloudLog) error {
+		if len(brokers) == 0 {
+			return ErrBrokersNotSpecified
+		}
 		cl.brokers = brokers
 		return nil
 	}
@@ -117,7 +119,7 @@ var DefaultBrokerAddresses = []string{
 
 // defaultOptions defines the default options which are applied to a new CloudLog instance
 var defaultOptions = []Option{
-	OptionBrokers(DefaultBrokerAddresses[0], DefaultBrokerAddresses[1:]...),
+	OptionBrokers(DefaultBrokerAddresses...),
 	OptionEventEncoder(NewAutomaticEventEncoder()),
 }
 
