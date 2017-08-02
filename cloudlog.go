@@ -4,6 +4,7 @@ package cloudlog
 import (
 	"crypto/tls"
 	"encoding/json"
+	"reflect"
 
 	"time"
 
@@ -108,6 +109,7 @@ func (cl *CloudLog) Close() (err error) {
 
 // PushEvents sends the supplied events to CloudLog
 func (cl *CloudLog) PushEvents(events ...interface{}) (err error) {
+
 	if len(events) == 0 {
 		// Bail out early if no events have been passed in
 		return
@@ -121,6 +123,16 @@ func (cl *CloudLog) PushEvents(events ...interface{}) (err error) {
 
 	now := time.Now().UTC()
 	timestampMillis := now.UnixNano() / int64(time.Millisecond)
+
+	// Check if is slice
+	if len(events) == 1 && reflect.TypeOf(events[0]).Kind() == reflect.Slice {
+		var slice []interface{}
+		val := reflect.ValueOf(events[0])
+		for i := 0; i < val.Len(); i++ {
+			slice = append(slice, val.Index(i).Interface())
+		}
+		events = slice
+	}
 
 	// Encode the events
 	messages := make([]*sarama.ProducerMessage, len(events))

@@ -144,6 +144,25 @@ func TestCloudLog_PushEvents(t *testing.T) {
 		}
 	}).Return(errors.New("test error"))
 	require.EqualError(t, cl.PushEvents("test0", "test1", "test2"), "test error")
+
+	// Test successful push of multiple events as slice
+	cl.eventEncoder = NewAutomaticEventEncoder()
+	mockProducer.EXPECT().SendMessages(gomock.Any()).Times(1).Do(func(msgs []*sarama.ProducerMessage) {
+		require.Len(t, msgs, 3)
+		for i, msg := range msgs {
+			require.EqualValues(t, cl.indexName, msg.Topic)
+			var msgData map[string]interface{}
+			require.NoError(t, json.Unmarshal([]byte(msg.Value.(sarama.StringEncoder)), &msgData))
+
+			// Ensure that all values have been set
+			require.InDelta(t, nowMillis, msgData["timestamp"], float64(time.Second))
+			require.EqualValues(t, fmt.Sprintf("test%d", i), msgData["message"])
+			require.EqualValues(t, "go-client-kafka", msgData["cloudlog_client_type"])
+			require.EqualValues(t, cl.sourceHost, msgData["cloudlog_source_host"])
+
+		}
+	}).Return(errors.New("test error"))
+	require.EqualError(t, cl.PushEvents([]string{"test0", "test1", "test2"}), "test error")
 }
 
 func TestCloudLog_PushEvent(t *testing.T) {
