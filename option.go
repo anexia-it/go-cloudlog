@@ -112,9 +112,7 @@ func OptionSourceHost(hostname string) Option {
 
 // DefaultBrokerAddresses defines the default broker addresses
 var DefaultBrokerAddresses = []string{
-	"anx-bdp-broker0401.bdp.anexia-it.com:443",
-	"anx-bdp-broker0402.bdp.anexia-it.com:443",
-	"anx-bdp-broker0403.bdp.anexia-it.com:443",
+	"kafka0401.bdp.anexia-it.com:8443",
 }
 
 // defaultOptions defines the default options which are applied to a new CloudLog instance
