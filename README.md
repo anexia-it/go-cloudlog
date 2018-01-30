@@ -38,24 +38,24 @@ func main() {
 
   // Push document as map
   logger.PushEvent(map[string]interface{}{
-		"timestamp": time.Now(),
-		"user":      "test",
-		"severity":  1,
-		"message":   "My first CloudLog event",
-	})
+	"timestamp": time.Now(),
+	"user":      "test",
+	"severity":  1,
+	"message":   "My first CloudLog event",
+  })
 
   // Push document as map
   type Document struct {
-		Timestamp uint64 `cloudlog:"timestamp"`
-		User      string `cloudlog:"user"`
-		Severity  int    `cloudlog:"severity"`
-		Message   string `cloudlog:"message"`
-	}
-	logger.PushEvent(&Document{
-		Timestamp: 1495171849463,
-		User:      "test",
-		Severity:  1,
-		Message:   "My first CloudLog event",
-	})
+	Timestamp uint64 `cloudlog:"timestamp"`
+	User      string `cloudlog:"user"`
+	Severity  int    `cloudlog:"severity"`
+	Message   string `cloudlog:"message"`
+  }
+  logger.PushEvent(&Document{
+ 	Timestamp: 1495171849463,
+	User:      "test",
+	Severity:  1,
+	Message:   "My first CloudLog event",
+  })
 }
 ```
