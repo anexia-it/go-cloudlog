@@ -109,7 +109,25 @@ func (cl *CloudLog) Close() (err error) {
 
 // PushEvents sends the supplied events to CloudLog
 func (cl *CloudLog) PushEvents(events ...interface{}) (err error) {
+	return cl.push("", events)
+}
 
+// PushEvent sends an event to CloudLog
+func (cl *CloudLog) PushEvent(event interface{}) error {
+	return cl.PushEvents(event)
+}
+
+// PushEventsKey sends the supplied events to CloudLog
+func (cl *CloudLog) PushEventsKey(key string, events ...interface{}) (err error) {
+	return cl.push(key, events)
+}
+
+// PushEventKey sends an event to CloudLog using the specified key as topic key
+func (cl *CloudLog) PushEventKey(key string, event interface{}) error {
+	return cl.PushEventsKey(key, event)
+}
+
+func (cl *CloudLog) push(key string, events []interface{}) (err error) {
 	if len(events) == 0 {
 		// Bail out early if no events have been passed in
 		return
@@ -159,17 +177,18 @@ func (cl *CloudLog) PushEvents(events ...interface{}) (err error) {
 			return NewMarshalError(eventMap, err)
 		}
 
-		messages[i] = &sarama.ProducerMessage{
+		m := &sarama.ProducerMessage{
 			Topic:     cl.indexName,
 			Value:     sarama.StringEncoder(eventData),
 			Timestamp: now,
 		}
+
+		if key != "" {
+			m.Key = sarama.StringEncoder(key)
+		}
+
+		messages[i] = m
 	}
 
 	return producer.SendMessages(messages)
-}
-
-// PushEvent sends an event to CloudLog
-func (cl *CloudLog) PushEvent(event interface{}) error {
-	return cl.PushEvents(event)
 }
