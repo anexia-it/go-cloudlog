@@ -2,114 +2,53 @@
 package cloudlog
 
 import (
-	"crypto/tls"
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
 	"reflect"
 
 	"time"
-
-	"sync"
-
-	"github.com/Shopify/sarama"
-	multierror "github.com/hashicorp/go-multierror"
 )
 
 // CloudLog is the CloudLog object to send logs
 type CloudLog struct {
-	brokers       []string
-	tlsConfig     *tls.Config
-	producerMutex sync.RWMutex
-	producer      sarama.SyncProducer
-	saramaConfig  sarama.Config
-	indexName     string
-	sourceHost    string
-	eventEncoder  EventEncoder
+	client   Client
+	url      string
+	token    string
+	hostname string
+	encoder  EventEncoder
 }
 
-// NewCloudLog initializes a new CloudLog instance
-func NewCloudLog(indexName string, options ...Option) (cl *CloudLog, err error) {
+// NewCloudLog initializes a new CloudLog instance with the default config
+func NewCloudLog(indexName, token string) (cl *CloudLog, err error) {
+	return NewCloudlogWithConfig(indexName, token, NewDefaultConfig())
+}
+
+//NewCloudlogWithConfig initializes a new CloudLog instance using the provided config
+func NewCloudlogWithConfig(indexName, token string, config *Config) (cl *CloudLog, err error) {
 	if indexName == "" {
 		err = ErrIndexNotDefined
 		return
 	}
 
+	url := fmt.Sprintf("https://api0401.bdp.anexia-it.com/v1/index/%s/data", indexName)
+
 	cl = &CloudLog{
-		tlsConfig: &tls.Config{},
-		indexName: indexName,
+		url:      url,
+		token:    token,
+		client:   config.Client,
+		hostname: config.Hostname,
+		encoder:  config.Encoder,
 	}
 
-	// When returning an error ensure that we return a nil value as *CloudLog
-	defer func() {
-		if err != nil {
-			cl = nil
-		}
-	}()
-
-	// Apply all options, default options first
-	options = append(defaultOptions, options...)
-	for _, opt := range options {
-		if optErr := opt(cl); optErr != nil {
-			err = multierror.Append(err, optErr)
-		}
-	}
-
-	// At least one option caused an error, bail out
-	if err != nil {
-		return
-	}
-
-	// Enforce TLS and the specific kafka version
-	cl.saramaConfig.Version = sarama.V0_10_2_0
-	cl.saramaConfig.Net.TLS.Enable = true
-	cl.saramaConfig.Net.TLS.Config = cl.tlsConfig
-
-	return
-}
-
-// InitCloudLog validates and initializes the CloudLog client
-func InitCloudLog(index string, ca string, cert string, key string) (*CloudLog, error) {
-	return NewCloudLog(index, OptionCACertificateFile(ca), OptionClientCertificateFile(cert, key))
-}
-
-func (cl *CloudLog) getProducer() (sarama.SyncProducer, error) {
-	var err error
-	cl.producerMutex.RLock()
-	defer cl.producerMutex.RUnlock()
-	if cl.producer == nil {
-		// Connection not yet established, establish connections now
-
-		// First drop the rlock and obtain a wlock
-		cl.producerMutex.RUnlock()
-		cl.producerMutex.Lock()
-
-		// Ensure that we drop the wlock again and obtain the rlock before returning,
-		// so the deferred runlock will not cause a panic
-		defer func() {
-			cl.producerMutex.Unlock()
-			cl.producerMutex.RLock()
-		}()
-		cl.producer, err = sarama.NewSyncProducer(cl.brokers, &cl.saramaConfig)
-	}
-
-	return cl.producer, err
-}
-
-// Close closes the connection
-func (cl *CloudLog) Close() (err error) {
-	cl.producerMutex.Lock()
-	defer cl.producerMutex.Unlock()
-
-	// Close should be a no-op if no connection has been established
-	if cl.producer != nil {
-		err = cl.producer.Close()
-		cl.producer = nil
-	}
 	return
 }
 
 // PushEvents sends the supplied events to CloudLog
 func (cl *CloudLog) PushEvents(events ...interface{}) (err error) {
-	return cl.push("", events)
+	return cl.push(events)
 }
 
 // PushEvent sends an event to CloudLog
@@ -117,25 +56,8 @@ func (cl *CloudLog) PushEvent(event interface{}) error {
 	return cl.PushEvents(event)
 }
 
-// PushEventsKey sends the supplied events to CloudLog
-func (cl *CloudLog) PushEventsKey(key string, events ...interface{}) (err error) {
-	return cl.push(key, events)
-}
-
-// PushEventKey sends an event to CloudLog using the specified key as topic key
-func (cl *CloudLog) PushEventKey(key string, event interface{}) error {
-	return cl.PushEventsKey(key, event)
-}
-
-func (cl *CloudLog) push(key string, events []interface{}) (err error) {
+func (cl *CloudLog) push(events []interface{}) (err error) {
 	if len(events) == 0 {
-		// Bail out early if no events have been passed in
-		return
-	}
-
-	// Get the producer. This will lazily establish the connection on the first call
-	var producer sarama.SyncProducer
-	if producer, err = cl.getProducer(); err != nil {
 		return
 	}
 
@@ -153,10 +75,10 @@ func (cl *CloudLog) push(key string, events []interface{}) (err error) {
 	}
 
 	// Encode the events
-	messages := make([]*sarama.ProducerMessage, len(events))
+	messages := make([]map[string]interface{}, len(events))
 	for i, ev := range events {
 		var eventMap map[string]interface{}
-		if eventMap, err = cl.eventEncoder.EncodeEvent(ev); err != nil {
+		if eventMap, err = cl.encoder.EncodeEvent(ev); err != nil {
 			return err
 		}
 
@@ -168,27 +90,44 @@ func (cl *CloudLog) push(key string, events []interface{}) (err error) {
 			eventMap["timestamp"] = ConvertToTimestamp(eventMap["timestamp"])
 		}
 
-		eventMap["cloudlog_source_host"] = cl.sourceHost
-		eventMap["cloudlog_client_type"] = "go-client-kafka"
+		eventMap["cloudlog_source_host"] = cl.hostname
+		eventMap["cloudlog_client_type"] = "go-client-rest"
 
-		var eventData []byte
-		eventData, err = json.Marshal(eventMap)
-		if err != nil {
-			return NewMarshalError(eventMap, err)
-		}
-
-		m := &sarama.ProducerMessage{
-			Topic:     cl.indexName,
-			Value:     sarama.StringEncoder(eventData),
-			Timestamp: now,
-		}
-
-		if key != "" {
-			m.Key = sarama.StringEncoder(key)
-		}
-
-		messages[i] = m
+		messages[i] = eventMap
 	}
 
-	return producer.SendMessages(messages)
+	err = cl.send(messages)
+	return
+}
+
+func (cl *CloudLog) send(messages []map[string]interface{}) error {
+
+	request := map[string]interface{}{
+		"records": messages,
+	}
+
+	var eventData []byte
+	eventData, err := json.Marshal(request)
+	if err != nil {
+		return NewMarshalError(request, err)
+	}
+
+	r := bytes.NewReader(eventData)
+	req, err := http.NewRequest(http.MethodPost, cl.url, r)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", cl.token)
+
+	resp, err := cl.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != 201 {
+		s := fmt.Sprintf("expecting StatuCode 201 but received %v ", resp.StatusCode)
+		return errors.New(s)
+	}
+
+	return nil
 }

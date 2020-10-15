@@ -8,7 +8,7 @@ go-cloudlog
 
 go-cloudlog is a client library for Anexia CloudLog.
 
-Currently it only provides to push events to CloudLog. Querying is possible in a future release.
+Currently it only provides to push events to CloudLog.
 
 ## Install
 
@@ -28,7 +28,7 @@ import cloudlog "github.com/anexia-it/go-cloudlog"
 func main() {
 
   // Init CloudLog client
-  client, err := cloudlog.InitCloudLog("index", "ca.pem", "cert.pem", "cert.key")
+  client, err := cloudlog.NewCloudLog("index", "token")
   if err != nil {
     panic(err)
   }

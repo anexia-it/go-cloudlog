@@ -35,6 +35,7 @@ func (e *AutomaticEventEncoder) EncodeEvent(event interface{}) (map[string]inter
 	return nil, NewUnsupportedEventType(event)
 }
 
+//StructEncoder encodes a struct
 type StructEncoder struct{}
 
 // EncodeEvent encodes the given event
