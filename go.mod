@@ -1,4 +1,4 @@
-module github.com/anexia-it/go-cloudlog
+module github.com/anexia-it/go-cloudlog/v2
 
 go 1.15
 
