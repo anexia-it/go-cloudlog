@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/anexia-it/go-cloudlog"
+	"github.com/anexia-it/go-cloudlog/v2"
 	"github.com/stretchr/testify/require"
 )
 
