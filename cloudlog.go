@@ -4,8 +4,8 @@ package cloudlog
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 
@@ -26,7 +26,7 @@ func NewCloudLog(indexName, token string) (cl *CloudLog, err error) {
 	return NewCloudlogWithConfig(indexName, token, NewDefaultConfig())
 }
 
-//NewCloudlogWithConfig initializes a new CloudLog instance using the provided config
+// NewCloudlogWithConfig initializes a new CloudLog instance using the provided config
 func NewCloudlogWithConfig(indexName, token string, config *Config) (cl *CloudLog, err error) {
 	if indexName == "" {
 		err = ErrIndexNotDefined
@@ -101,7 +101,6 @@ func (cl *CloudLog) push(events []interface{}) (err error) {
 }
 
 func (cl *CloudLog) send(messages []map[string]interface{}) error {
-
 	request := map[string]interface{}{
 		"records": messages,
 	}
@@ -112,8 +111,7 @@ func (cl *CloudLog) send(messages []map[string]interface{}) error {
 		return NewMarshalError(request, err)
 	}
 
-	r := bytes.NewReader(eventData)
-	req, err := http.NewRequest(http.MethodPost, cl.url, r)
+	req, err := http.NewRequest(http.MethodPost, cl.url, bytes.NewReader(eventData))
 	if err != nil {
 		return err
 	}
@@ -123,10 +121,13 @@ func (cl *CloudLog) send(messages []map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	if resp.StatusCode != 201 {
-		s := fmt.Sprintf("expecting StatuCode 201 but received %v ", resp.StatusCode)
-		return errors.New(s)
+		return fmt.Errorf("expecting StatusCode 201 but received %d", resp.StatusCode)
 	}
 
 	return nil
