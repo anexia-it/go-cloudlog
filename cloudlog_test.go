@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -22,7 +21,7 @@ type MockClient struct {
 }
 
 func (mc *MockClient) Do(req *http.Request) (resp *http.Response, err error) {
-	b, err := ioutil.ReadAll(req.Body)
+	b, err := io.ReadAll(req.Body)
 	if err != nil {
 		return
 	}
