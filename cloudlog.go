@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"reflect"
 
 	"time"
@@ -39,10 +38,7 @@ func NewCloudlogWithConfig(indexName, token string, config *Config) (cl *CloudLo
 		baseURL = config.BaseURL
 	}
 
-	apiURL, err := url.JoinPath(baseURL, "v1", "index", indexName, "data")
-	if err != nil {
-		return nil, err
-	}
+	apiURL := fmt.Sprintf("%s/v1/index/%s/data", baseURL, indexName)
 
 	cl = &CloudLog{
 		url:      apiURL,
