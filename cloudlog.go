@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 
 	"time"
@@ -33,10 +34,18 @@ func NewCloudlogWithConfig(indexName, token string, config *Config) (cl *CloudLo
 		return
 	}
 
-	url := fmt.Sprintf("https://api0401.bdp.anexia-it.com/v1/index/%s/data", indexName)
+	baseURL := "https://api0401.bdp.anexia-it.com"
+	if config.BaseURL != "" {
+		baseURL = config.BaseURL
+	}
+
+	apiURL, err := url.JoinPath(baseURL, "v1", "index", indexName, "data")
+	if err != nil {
+		return nil, err
+	}
 
 	cl = &CloudLog{
-		url:      url,
+		url:      apiURL,
 		token:    token,
 		client:   config.Client,
 		hostname: config.Hostname,
