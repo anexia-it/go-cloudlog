@@ -3,8 +3,9 @@ package cloudlog
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ type MockClient struct {
 }
 
 func (mc *MockClient) Do(req *http.Request) (resp *http.Response, err error) {
-	b, err := ioutil.ReadAll(req.Body)
+	b, err := io.ReadAll(req.Body)
 	if err != nil {
 		return
 	}
@@ -31,7 +32,9 @@ func (mc *MockClient) Do(req *http.Request) (resp *http.Response, err error) {
 		return
 	}
 
-	resp = &http.Response{}
+	resp = &http.Response{
+		Body: io.NopCloser(strings.NewReader("")),
+	}
 	resp.StatusCode = 201
 	mc.m = m
 	return

@@ -8,8 +8,6 @@ go-cloudlog
 
 go-cloudlog is a client library for Anexia CloudLog.
 
-Currently it only provides to push events to CloudLog.
-
 ## Install
 
 With a [correctly configured](https://golang.org/doc/install#testing) Go toolchain:
